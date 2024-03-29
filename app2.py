@@ -1,12 +1,13 @@
-import base64
-
 import streamlit as st
 import peptacular as pt
 import pandas as pd
 import plotly.graph_objects as go
 
+
+st.set_page_config(layout="centered", page_title='Isotopic Distribution Calculator', page_icon='📊')
+
 with st.sidebar:
-    st.title('Isotope Distribution Calculator')
+    st.title('Isotopic Distribution Calculator 📊')
 
     st.caption('Calculate the isotopic distribution of a peptide, formula, or neutral mass. Peptide and Formula inputs '
                'must be proforma2.0 compliant. Neutral Mass is in Daltons (Da). Distributions are calculated prior '
@@ -103,7 +104,7 @@ with st.sidebar:
                                          help='Enter the neutral mass (e.g. 1000 Da)')
         sequence_mass = sequence_input
         try:
-            composition = pt.estimate_element_counts(sequence_mass)
+            composition = pt.estimate_comp(sequence_mass)
         except ValueError as e:
             st.error(e)
             st.stop()
@@ -125,17 +126,17 @@ with st.sidebar:
                                            help='Minimum abundance threshold to display')
 
     use_neutron = st.toggle(label='Neutron Offset',
-                            value=False,
+                            value=True,
                             help='Use neutron offsets for isotopic distribution instead of mass of each isotope. '
                                  'This gives isotopic peaks at Neutral Mass +/- N * Neutron Mass')
 
     distribution_resolution = st.slider(label='Resolution',
-                                        value=5,
+                                        value=2,
                                         min_value=0,
                                         max_value=10,
                                         step=1,
-                                        help='Resolution of the distribution (Round to nearest X decimal places)',
-                                        disabled=use_neutron)
+                                        help='Resolution of the distribution (Round to nearest X decimal places)'
+                                        )
 
     st.caption('Low Resolution: 0-1, Medium Resolution: 2-5, High Resolution: 6-10')
 
@@ -200,6 +201,8 @@ df = df.head(max_isotopes)
 # apply the charge state
 df['mass_to_charge_ratio'] = (df['neutral_mass'] + charge * 1.007276466) / charge if charge > 0 else df['neutral_mass']
 
+st.title('Results')
+
 # Assuming `df` is your DataFrame with isotopes
 fig = go.Figure()
 
@@ -222,7 +225,8 @@ fig.update_layout(title=f'Isotopic Distribution: {sequence_input} {"da" if isins
 st.plotly_chart(fig)
 
 # center title
-st.markdown("<center><h1>Isotopic Distribution Table</h1></center>", unsafe_allow_html=True)
+#st.markdown("<center><h1>Isotopic Distribution Table</h1></center>", unsafe_allow_html=True)
+st.title('Isotopic Distribution Table')
 # st.dataframe(df, use_container_width=True, hide_index=True)
 
 # reordering the columns
@@ -235,25 +239,28 @@ df['mass_to_charge_ratio'] = df['mass_to_charge_ratio'].round(4)
 df['relative_abundance'] = df['relative_abundance'].round(3)
 df['percentage_abundance'] = df['percentage_abundance'].round(3)
 
-# center
-st.markdown("<style>table{color: #000000; text-align: center;}</style>", unsafe_allow_html=True)
-
-
-def get_table_download_link(df):
-    csv = df.to_csv(index=False)
-    b64 = base64.b64encode(csv.encode()).decode()
-    href = f'<a href="data:file/csv;base64,{b64}" download="isotopic_distribution.csv">Download Table</a>'
-    return href
-
 
 # download
-st.markdown(get_table_download_link(df), unsafe_allow_html=True)
+height = min(int(35.2*(len(df)+1)), 1000)
+st.dataframe(df, 
+             use_container_width=True, 
+             hide_index=True, 
+             height=height,
+             column_config={
+            "neutral_mass": st.column_config.NumberColumn(
+                "Neutral Mass", help="Neutral mass of the isotope.",
+                width='small'),
 
-filter_by = st.toggle(label='Sort by Mass', value=False)
+            "mass_to_charge_ratio": st.column_config.NumberColumn(
+                "Mass to Charge Ratio", help="Mass to charge ratio of the isotope.",
+                width='small'),
 
-if filter_by:
-    df = df.sort_values(by='neutral_mass')
-else:
-    df = df.sort_values(by='relative_abundance', ascending=False)
+            "relative_abundance": st.column_config.NumberColumn(
+                "Relative Abundance", help="Relative abundance of the isotope.",
+                width='small'),
 
-st.markdown(df.style.hide(axis="index").to_html(), unsafe_allow_html=True)
+            "percentage_abundance": st.column_config.NumberColumn(
+                "Percentage Abundance", help="Percentage abundance of the isotope.",
+                width='small')
+             }
+             )

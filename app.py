@@ -1,4 +1,3 @@
-import base64
 from typing import Dict
 
 import streamlit as st
@@ -6,15 +5,16 @@ import peptacular as pt
 import pandas as pd
 import plotly.graph_objects as go
 
+st.set_page_config(page_title='Peptide Isotopic Distribution Calculator', page_icon='💻')
+
 if 'peptide_count' not in st.session_state:
     st.session_state['peptide_count'] = 1
 
 with st.sidebar:
-    st.title('Isotope Distribution Calculator')
+    st.title('Peptide Isotopic Distribution Calculator 💻')
 
-    st.caption('Calculate the isotopic distribution of a peptide, formula, or neutral mass. Peptide and Formula inputs '
-               'must be proforma2.0 compliant. Neutral Mass is in Daltons (Da). Distributions are calculated prior '
-               'to applying charge state (so proton isotopic abundance is not considered).')
+    st.caption('Calculate the isotopic distribution of one or more peptides. Peptide and Formula inputs '
+               'must be proforma2.0 compliant.')
 
     st.caption('Made with [peptacular](https://pypi.org/project/peptacular/)')
 
@@ -30,24 +30,24 @@ with st.sidebar:
             st.toast('At least one peptide is required')
 
     for i in range(st.session_state['peptide_count']):
-        with st.expander(f'Peptide {i+1}', expanded=True):
+        with st.expander(f'Peptide {i + 1}', expanded=True):
             sequence_input = st.text_input(label='Sequence',
                                            value='PEPTIDE',
                                            help='Enter the peptide sequence (e.g. PEPTIDE)',
                                            key=f'sequence_input_{i}')
             c1, c2, c3 = st.columns(3)
             charge = c1.number_input(label='Charge',
-                                        value=2,
-                                        min_value=0,
-                                        step=1,
-                                        help='Charge state of the peptide',
-                                        key=f'charge_{i}')
+                                     value=2,
+                                     min_value=0,
+                                     step=1,
+                                     help='Charge state of the peptide',
+                                     key=f'charge_{i}')
 
             ion_types = c2.selectbox(label='Ion Type',
-                                        options=['p', 'b', 'y', 'a', 'c', 'z', 'x', ],
-                                        index=0,
-                                        help='Ion type to calculate the mass of the peptide',
-                                        key=f'ion_types_{i}')
+                                     options=['p', 'b', 'y', 'a', 'c', 'z', 'x', ],
+                                     index=0,
+                                     help='Ion type to calculate the mass of the peptide',
+                                     key=f'ion_types_{i}')
 
             intensity = c3.number_input(label='Intensity',
                                         value=1000,
@@ -55,7 +55,6 @@ with st.sidebar:
                                         step=1000,
                                         help='Intensity of the peptide',
                                         key=f'intensity_{i}')
-
 
     # Get the values
     sequences = [st.session_state[f'sequence_input_{i}'] for i in range(st.session_state['peptide_count'])]
@@ -77,12 +76,12 @@ with st.sidebar:
                                            help='Minimum abundance threshold to display')
 
     use_neutron = st.toggle(label='Neutron Offset',
-                            value=False,
+                            value=True,
                             help='Use neutron offsets for isotopic distribution instead of mass of each isotope. '
                                  'This gives isotopic peaks at Neutral Mass +/- N * Neutron Mass')
 
     distribution_resolution = st.slider(label='Resolution',
-                                        value=5,
+                                        value=2,
                                         min_value=0,
                                         max_value=10,
                                         step=1,
@@ -90,7 +89,6 @@ with st.sidebar:
                                         disabled=False)
 
     st.caption('Low Resolution: 0-1, Medium Resolution: 2-5, High Resolution: 6-10')
-
 
 data = []
 for sequence, charge, ion_types, intensity in zip(sequences, charges, ion_types, intensities):
@@ -121,8 +119,6 @@ df['neutral_mass'] = df.apply(lambda x: pt.mass(x.sequence, ion_type=x.ion_type)
 df['mass_to_charge_ratio'] = df.apply(lambda x: pt.mz(x.sequence, charge=x.charge, ion_type=x.ion_type), axis=1)
 df['composition'] = df.apply(lambda x: get_chem_composition(x.sequence, x.ion_type, x.charge), axis=1)
 
-st.dataframe(df, use_container_width=True)
-
 all_isotopes = []
 for _, row in df.iterrows():
     isotopes = pt.isotopic_distribution(row['composition'],
@@ -137,7 +133,7 @@ for _, row in df.iterrows():
         isotopes = [(sequence_mass + mass * pt.constants.NEUTRON_MASS, abundance) for mass, abundance in isotopes]
 
     # convert to m/z
-    isotopes = [(mass/row['charge'],abundance) for mass, abundance in isotopes]
+    isotopes = [(mass / row['charge'], abundance) for mass, abundance in isotopes]
 
     # multiply by intensity
     isotopes = [(mass, abundance * row['intensity']) for mass, abundance in isotopes]
@@ -151,7 +147,9 @@ for i, isotopes in enumerate(all_isotopes):
         isotope_dict2.append({'mass_to_charge_ratio': mz, 'relative_abundance': abundance, 'sequence': sequences[i]})
 
 df2 = pd.DataFrame(isotope_dict2)
-st.dataframe(df2, use_container_width=True)
+#st.dataframe(df2, use_container_width=True)
+#st.dataframe(df, use_container_width=True)
+
 
 # make a bar chart
 # make a bar chart
@@ -164,10 +162,13 @@ for sequence in df2['sequence'].unique():
 
 # Customize the plot for better readability
 # Add barmode='stack' to stack the bars
-fig.update_layout(title='Isotopic Distribution',
+fig.update_layout(title='Stacked Isotopic Distribution',
                   xaxis_title="Mass To Charge Ratio", yaxis_title="Relative Abundance",
                   margin=dict(l=40, r=40, t=40, b=40),
                   barmode='stack')  # This is where you set the bars to stack
+
+st.title('Results')
+
 
 st.plotly_chart(fig)
 
@@ -183,22 +184,22 @@ total_abundance = sum(isotope_dict.values())
 max_abundance = max(isotope_dict.values())
 isotope_dict = {k: v / max_abundance for k, v in isotope_dict.items()}
 
-
 df = pd.DataFrame(isotope_dict.items(), columns=['mass_to_charge_ratio', 'relative_abundance'])
 
 # filter the df
 df = df[df['relative_abundance'] > min_abundance_threshold]
 df['relative_abundance'] = df['relative_abundance'] * 100
+df['percentage_abundance'] = df['relative_abundance'] / df['relative_abundance'].sum() * 100
 
 # make percent
 df['relative_abundance'] = df['relative_abundance'].round(3)
+
 
 # sort the df
 df = df.sort_values(by='relative_abundance', ascending=False)
 
 # filter df by max isotopes
 df = df.head(max_isotopes)
-
 
 # Assuming `df` is your DataFrame with isotopes
 fig = go.Figure()
@@ -215,14 +216,15 @@ for idx, row in df.iterrows():
                    showlegend=False))
 
 # Customize the plot for better readability
-fig.update_layout(title=f'Isotopic Distribution: {sequence_input} {"da" if isinstance(sequence_input, int) else ""}',
+fig.update_layout(title=f'Combined Isotopic Distribution',
                   xaxis_title="Mass To Charge Ratio", yaxis_title="Relative Abundance",
                   margin=dict(l=40, r=40, t=40, b=40))
 
 st.plotly_chart(fig)
 
 # center title
-st.markdown("<center><h1>Isotopic Distribution Table</h1></center>", unsafe_allow_html=True)
+#st.markdown("<center><h1>Isotopic Distribution Table</h1></center>", unsafe_allow_html=True)
+st.title('Isotopic Distribution Table')
 # st.dataframe(df, use_container_width=True, hide_index=True)
 
 # reordering the columns
@@ -234,27 +236,27 @@ df['mass_to_charge_ratio'] = df['mass_to_charge_ratio'].round(4)
 df['relative_abundance'] = df['relative_abundance'].round(3)
 df['percentage_abundance'] = df['percentage_abundance'].round(3)
 
-# center
-st.markdown("<style>table{color: #000000; text-align: center;}</style>", unsafe_allow_html=True)
 
+height = min(int(35.2*(len(df)+1)), 1000)
+st.dataframe(df,
+             use_container_width=True,
+             hide_index=True,
+             height=height,
+             column_config={
+                 "neutral_mass": st.column_config.NumberColumn(
+                     "Neutral Mass", help="Neutral mass of the isotope.",
+                     width='small'),
 
-def get_table_download_link(df):
-    csv = df.to_csv(index=False)
-    b64 = base64.b64encode(csv.encode()).decode()
-    href = f'<a href="data:file/csv;base64,{b64}" download="isotopic_distribution.csv">Download Table</a>'
-    return href
+                 "mass_to_charge_ratio": st.column_config.NumberColumn(
+                     "Mass to Charge Ratio", help="Mass to charge ratio of the isotope.",
+                     width='small'),
 
+                 "relative_abundance": st.column_config.NumberColumn(
+                     "Relative Abundance", help="Relative abundance of the isotope.",
+                     width='small'),
 
-# download
-st.markdown(get_table_download_link(df), unsafe_allow_html=True)
-
-filter_by = st.toggle(label='Sort by M/Z', value=False)
-
-if filter_by:
-    df = df.sort_values(by='mass_to_charge_ratio')
-else:
-    df = df.sort_values(by='relative_abundance', ascending=False)
-
-st.markdown(df.style.hide(axis="index").to_html(), unsafe_allow_html=True)
-
-
+                 "percentage_abundance": st.column_config.NumberColumn(
+                     "Percentage Abundance", help="Percentage abundance of the isotope.",
+                     width='small')
+             }
+             )
