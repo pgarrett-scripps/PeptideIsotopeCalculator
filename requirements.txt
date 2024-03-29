@@ -1,0 +1,4 @@
+streamlit==1.31.1
+peptacular @ git+https://github.com/pgarrett-scripps/peptacular@main
+pandas==2.2.1
+plotly==5.19.0
