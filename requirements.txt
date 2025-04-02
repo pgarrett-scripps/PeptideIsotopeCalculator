@@ -1,4 +1,4 @@
 streamlit==1.44.0
-streamlit-permalink @ git+https://github.com/pgarrett-scripps/streamlit-permalink@cc2769d
+streamlit-permalink @ git+https://github.com/pgarrett-scripps/streamlit-permalink@c7ed5ae
 peptacular==2.2.1
 plotly==5.19.0
