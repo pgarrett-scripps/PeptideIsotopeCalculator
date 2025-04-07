@@ -255,7 +255,7 @@ def get_input_settings() -> tuple:
                 label="Intensity Sum",
                 value=DEFAULT_IS_INTENSITY_SUM,
                 key="is_intensity_sum",
-                help="Sum the relative abundance to 1.0 instead of scaling by intensity",
+                help="If selected, then the sum of all isotopic peaks should equal to 100%. If false. the largest peak will be set to 100%.",
             )
         
     distribution_resolution = DEFAULT_DISTRIBUTION_RESOLUTION
