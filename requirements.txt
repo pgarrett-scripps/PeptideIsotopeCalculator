@@ -1,4 +1,6 @@
 streamlit==1.44.0
 streamlit-permalink @ git+https://github.com/pgarrett-scripps/streamlit-permalink@c7ed5ae
-peptacular==2.2.1
+peptacular @ git+https://github.com/pgarrett-scripps/peptacular.git@b137d45
 plotly==5.19.0
+streamlit-js-eval==0.1.7
+requests==2.32.3
