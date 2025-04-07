@@ -18,6 +18,19 @@ st.set_page_config(
 )
 
 with st.sidebar:
+
+    # Inject custom CSS to set the width of the sidebar
+    st.markdown(
+        """
+        <style>
+            section[data-testid="stSidebar"] {
+                width: 600px !important; # Set the width to your desired value
+            }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
     st.title("Multi-Isotopic Distribution Calculator 📊")
 
     st.caption(
