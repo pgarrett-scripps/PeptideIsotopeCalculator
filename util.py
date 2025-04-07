@@ -529,7 +529,7 @@ def construct_figure(df: pd.DataFrame, params: SingleIsoInput) -> go.Figure:
             x=df['mass_to_charge_ratio'],
             y=df['abundance']*100,
             mode="markers",
-            marker=dict(size=6),
+            marker=dict(size=6, color="#007BFF"),
             name="Isotopes",
         )
     )

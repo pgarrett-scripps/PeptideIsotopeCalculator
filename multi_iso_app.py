@@ -31,17 +31,24 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
-    st.title("Multi-Isotopic Distribution Calculator 📊")
 
-    st.caption(
-        "Calculate and visualize the isotopic distributions of multiple peptides, formulas, or neutral masses. Peptide and Formula inputs "
-        "must be proforma2.0 compliant. Neutral Mass is in Daltons (Da). Distributions are calculated prior "
-        "to applying charge state or ambiguous masses (so charge adducts and delta mass mods are ignored)."
-    )
+    st.markdown(f"""
+        <div style='text-align: center; padding: 15px; top-margin: 0px'>
+            <h3 style='margin: 0; font-size: 1.5em; color: #333;'>Multi-IsoCalc 📊</h3>
+            <p style='font-size: 1.0em; line-height: 1.6; color: #555;'>
+                Calculate and visualize the isotopic distributions of multiple peptides, formulas, or neutral masses. 
+                Peptide and Formula inputs must be 
+                <a href="https://peptacular.readthedocs.io/en/latest/modules/getting_started.html#proforma-notation" 
+                target="_blank" style='color: #007BFF; text-decoration: none;'>proforma2.0 compliant</a>.
+                Neutral Mass is in Daltons (Da). Distributions are calculated prior to applying charge state 
+                or ambiguous masses (so charge adducts and delta mass mods are ignored). Powered by 
+                <a href="https://github.com/pgarrett-scripps/peptacular" target="_blank" style='color: #007BFF; text-decoration: none;'>
+                    <strong>Peptacular</strong>
+                </a>.
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
 
-    st.caption(
-        "Made using [peptacular](https://github.com/pgarrett-scripps/peptacular): [![DOI](https://zenodo.org/badge/591504879.svg)](https://doi.org/10.5281/zenodo.15054278)"
-    )
 
     st.subheader("Input Table")
 
@@ -193,3 +200,31 @@ with top_window:
                 st.write(f"Shortened URL: {url}")
 
             url_dialog(short_url)
+
+
+    st.divider()
+
+    st.markdown(f"""
+        <div style='display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-top: 0px solid #ddd;'>
+            <div style='text-align: left; font-size: 1.1em; color: #555;'>
+                <a href="https://github.com/pgarrett-scripps/PeptideIsotopeCalculator" target="_blank" 
+                   style='text-decoration: none; color: #007BFF; font-weight: bold;'>
+                    Multi-Iso-Calc
+                </a>
+                <a href="https://doi.org/10.5281/zenodo.15170926" target="_blank" style="margin-left: 12px;">
+                    <img src="https://zenodo.org/badge/779470286.svg" alt="DOI" 
+                         style="vertical-align: middle; height: 20px;">
+                </a>
+            </div>
+            <div style='text-align: right; font-size: 1.1em; color: #555;'>
+                <a href="https://github.com/pgarrett-scripps/peptacular" target="_blank" 
+                   style='text-decoration: none; color: #007BFF; font-weight: bold;'>
+                    Peptacular
+                </a>
+                <a href="https://doi.org/10.5281/zenodo.15054278" target="_blank" style="margin-left: 12px;">
+                    <img src="https://zenodo.org/badge/591504879.svg" alt="DOI" 
+                         style="vertical-align: middle; height: 20px;">
+                </a>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
