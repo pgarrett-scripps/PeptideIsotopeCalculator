@@ -510,17 +510,6 @@ def construct_figure(df: pd.DataFrame, params: SingleIsoInput) -> go.Figure:
     # Assuming `df` is your DataFrame with isotopes
     fig = go.Figure()
 
-    # Add scatter plot for the isotopes markers
-    fig.add_trace(
-        go.Scatter(
-            x=df['mass_to_charge_ratio'],
-            y=df['abundance']*100,
-            mode="markers",
-            marker=dict(size=4),
-            name="Isotopes",
-        )
-    )
-
     # Add lines from each isotope marker to the base
     for idx, row in df.iterrows():
         fig.add_trace(
@@ -528,10 +517,23 @@ def construct_figure(df: pd.DataFrame, params: SingleIsoInput) -> go.Figure:
                 x=[row['mass_to_charge_ratio'], row['mass_to_charge_ratio']],
                 y=[0, row["abundance"]*100],
                 mode="lines",
-                line=dict(color="grey", width=1.5),
+                line=dict(color="grey", width=3),
                 showlegend=False,
             )
         )
+
+    
+    # Add scatter plot for the isotopes markers
+    fig.add_trace(
+        go.Scatter(
+            x=df['mass_to_charge_ratio'],
+            y=df['abundance']*100,
+            mode="markers",
+            marker=dict(size=6),
+            name="Isotopes",
+        )
+    )
+
 
     # Customize the plot for better readability
     fig.update_layout(
