@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit_permalink as stp
 import peptacular as pt
 import pandas as pd
 import plotly.graph_objects as go
@@ -75,10 +76,19 @@ with top_window:
         single_df['sequence'] = single_iso_param.sequence
         df = pd.concat([df, single_df], ignore_index=True)
 
-    # Find maximum abundance across all m/z for relative scaling
-    grouped_df = df.groupby('mass_to_charge_ratio')
-    total_by_mz = grouped_df['abundance'].sum()
-    max_total_abundance = total_by_mz.max()
+
+    df['relative_abundance'] = None
+    max_abundance = df['abundance'].max()
+    sum_abundance = df['abundance'].sum()
+    for single_iso_param in params.single_iso_inputs:
+        # Normalize the abundances to sum to 100%
+        seq_flag = df['sequence'] == single_iso_param.sequence
+        if params.is_intensity_sum:
+            # Normalize to sum to 100%
+            df.loc[seq_flag, 'relative_abundance'] = df.loc[seq_flag, 'abundance'] / sum_abundance
+        else:
+            # Normalize to the most abundant peak
+            df.loc[seq_flag, 'relative_abundance'] = df.loc[seq_flag, 'abundance'] / max_abundance
 
     # Create a single table with multiple rows for all parameters
     table_html = """
@@ -114,19 +124,13 @@ with top_window:
     # Display the complete table once
     st.html(table_html)
 
-    fig = construct_multi_isotope_figure(df)
+    fig = construct_multi_isotope_figure(df, line_width=params.line_width, is_log=params.is_log)
     st.plotly_chart(fig)
 
     # Show isotope table
     st.title("Isotopic Distribution Table")
 
-    # fix realtive intensity (should be realtive to the sum of all rows with the same mass)
-    # reordering the columns
-    # Group by mass_to_charge_ratio to identify overlapping isotopes
-
-
-
-    height = min(int(35.2 * (len(df) + 1)), 1000)
+    height = min(int(35.3 * (len(df) + 1)), 1000)
     st.dataframe(
         df,
         use_container_width=True,
@@ -135,9 +139,9 @@ with top_window:
         column_order=[
             "sequence",
             "neutral_mass",
-            "mass_to_charge_ratio",
+            "mz",
             "abundance",
-            "global_realtive_abundance",
+            "relative_abundance",
         ],
         column_config={
             "sequence": st.column_config.TextColumn(
@@ -151,8 +155,8 @@ with top_window:
                 width="small",
                 format="%.4f",
             ),
-            "mass_to_charge_ratio": st.column_config.NumberColumn(
-                "Mass to Charge Ratio",
+            "mz": st.column_config.NumberColumn(
+                "m/z",
                 help="Mass to charge ratio of the isotope.",
                 width="small",
                 format="%.4f",
@@ -163,7 +167,7 @@ with top_window:
                 width="small",
                 format="%.2f",
             ),
-                "global_realtive_abundance": st.column_config.NumberColumn(
+                "relative_abundance": st.column_config.NumberColumn(
                 "Relative Abundance",
                 help="Abundance of the isotope.",
                 width="small",
@@ -179,7 +183,7 @@ with top_window:
         data=df.to_csv(index=False),
         file_name="isotopic_distribution.csv",
         mime="text/csv",
-        type='primary',
+        type='secondary',
         use_container_width=True,
         on_click='ignore',
         help="Download the isotopic distribution table as a CSV file.",

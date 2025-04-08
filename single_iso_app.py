@@ -7,8 +7,8 @@ from util import (get_single_app_input,
                   validate_input, 
                   construct_isotope_df,
                   construct_figure,
-                get_query_params_url,
-                shorten_url)
+                  get_query_params_url,
+                  shorten_url)
 
 st.set_page_config(
     layout="centered", page_title="IsoCalc", page_icon="📊"
@@ -91,7 +91,7 @@ with top_window:
     # Show isotope table
     st.title("Isotopic Distribution Table")
 
-    height = min(int(35.2 * (len(df) + 1)), 1000)
+    height = min(int(35.3 * (len(df) + 1)), 1000)
     st.dataframe(
         df,
         use_container_width=True,
@@ -99,7 +99,7 @@ with top_window:
         height=height,
         column_order=[
             "neutral_mass",
-            "mass_to_charge_ratio",
+            "mz",
             "abundance",
         ],
         column_config={
@@ -109,8 +109,8 @@ with top_window:
                 width="small",
                 format="%.4f",
             ),
-            "mass_to_charge_ratio": st.column_config.NumberColumn(
-                "Mass to Charge Ratio",
+            "mz": st.column_config.NumberColumn(
+                "m/z",
                 help="Mass to charge ratio of the isotope.",
                 width="small",
                 format="%.4f",
@@ -130,7 +130,7 @@ with top_window:
         data=df.to_csv(index=False),
         file_name="isotopic_distribution.csv",
         mime="text/csv",
-        type='primary',
+        type='secondary',
         use_container_width=True,
         on_click='ignore',
         help="Download the isotopic distribution table as a CSV file.",

@@ -11,6 +11,7 @@ from typing import Literal, Optional
 from urllib.parse import quote_plus
 
 from constants import *
+from help_messages import *
 
 
 @dataclass
@@ -30,6 +31,8 @@ class SingleIsoInput:
     neutron_value: float
     intensity: float = 1
     is_intensity_sum: bool = False
+    line_width: int = 3
+    is_log: bool = False
 
     @property
     def is_peptide(self) -> bool:
@@ -127,27 +130,30 @@ class SingleIsoInput:
         # Calculate isotopic distributions based on input type
         if self.is_peptide or self.is_formula:
             isotopes = pt.isotopic_distribution(
-                self.composition,
-                self.max_isotopes,
-                self.min_abundance_threshold,
-                self.distribution_resolution,
-                self.use_neutron,
-                neutron_mass=self.neutron_value,
-                output_masses_for_neutron_offset=True,
+                chemical_formula=self.composition,
+                max_isotopes=self.max_isotopes,
+                min_abundance_threshold=self.min_abundance_threshold,
+                distribution_resolution=self.distribution_resolution,
+                use_neutron_count=self.use_neutron,
+                conv_min_abundance_threshold=None,
                 distribution_abundance=self.intensity,
                 is_abundance_sum=self.is_intensity_sum,
+                output_masses_for_neutron_offset=True,
+                neutron_mass=self.neutron_value,
+
             )
         elif self.is_mass:
             isotopes = pt.estimate_isotopic_distribution(
-                float(self.sequence),
-                self.max_isotopes,
-                self.min_abundance_threshold,
-                self.distribution_resolution,
-                self.use_neutron,
-                neutron_mass=self.neutron_value,
-                output_masses_for_neutron_offset=True,
+                neutral_mass=float(self.sequence),
+                max_isotopes=self.max_isotopes,
+                min_abundance_threshold=self.min_abundance_threshold,
+                distribution_resolution=self.distribution_resolution,
+                use_neutron_count=self.use_neutron,
+                conv_min_abundance_threshold=None,
                 distribution_abundance=self.intensity,
                 is_abundance_sum=self.is_intensity_sum,
+                output_masses_for_neutron_offset=True,
+                neutron_mass=self.neutron_value,
             )
         else:
             raise ValueError("Invalid input type")
@@ -219,6 +225,20 @@ class MultiIsoInput:
         Check if the input type is intensity sum.
         """
         return self.single_iso_inputs[0].is_intensity_sum
+    
+    @property
+    def line_width(self) -> int:
+        """
+        Get the line width of the input.
+        """
+        return self.single_iso_inputs[0].line_width
+    
+    @property
+    def is_log(self) -> bool:
+        """
+        Check if the input type is log.
+        """
+        return self.single_iso_inputs[0].is_log
 
             
 def get_input_settings() -> tuple:
@@ -232,15 +252,14 @@ def get_input_settings() -> tuple:
             max_value=MAX_ISOTOPES,
             step=ISOTOPES_STEP,
             key="max_isotopes",
-            help="Maximum number of isotopes to display",
+            help=MAX_ISOTOPES_HELP,
         )
 
         use_neutron = stp.toggle(
             label="Neutron Offset",
             value=DEFAULT_USE_NEUTRON,
             key="use_neutron",
-            help="Use neutron offsets for isotopic distribution instead of mass of each isotope. "
-            "This gives isotopic peaks at Neutral Mass +/- N * Neutron Mass",
+            help=NEUTRON_OFFSET_HELP,
         )
 
     with c2:
@@ -248,15 +267,14 @@ def get_input_settings() -> tuple:
             label="Min Relative Abundance",
             options=ABUNDANCE_OPTIONS,
             index=DEFAULT_ABUNDANCE_INDEX,
-            help="Minimum abundance threshold to display",
+            help=MIN_ABUNDANCE_HELP,
         )
 
         is_intensity_sum = stp.toggle(
                 label="Intensity Sum",
                 value=DEFAULT_IS_INTENSITY_SUM,
                 key="is_intensity_sum",
-                help="If selected, then the sum of all isotopic peaks should equal to 100%. If false. the largest peak will be set to 100%.",
-            )
+                help=INTENSITY_SUM_HELP)
         
     distribution_resolution = DEFAULT_DISTRIBUTION_RESOLUTION
     neutron_value = None
@@ -267,14 +285,16 @@ def get_input_settings() -> tuple:
             min_value=MIN_DISTRIBUTION_RESOLUTION,
             max_value=MAX_DISTRIBUTION_RESOLUTION,
             step=DISTRIBUTION_RESOLUTION_STEP,
-            help="Resolution of the distribution (Round to nearest X decimal places)",
+            help=RESOLUTION_HELP,
+            key="distribution_resolution",
         )
         
     neutron_option = stp.selectbox(
         label="Neutron Mass",
         options=NEUTRON_MASS_OPTIONS,
         index=DEFAULT_NEUTRON_MASS_INDEX,
-        help="Neutron mass to use for isotopic distribution calculation",
+        help=NEUTRON_MASS_HELP,
+        key="neutron_mass_option",
     )
 
     if neutron_option == "Neutron":
@@ -288,7 +308,8 @@ def get_input_settings() -> tuple:
             label="Custom Neutron Mass",
             value=NEUTRON_MASS_VALUE,
             format="%.6f",
-            help="Custom neutron mass to use for isotopic distribution calculation",
+            help=CUSTOM_NEUTRON_MASS_HELP,
+            key="custom_neutron_mass",
         )
 
     st.caption(f"Neutron Mass: {neutron_value:.6f} Da")
@@ -306,6 +327,7 @@ def get_single_app_input() -> SingleIsoInput:
         index=DEFAULT_INPUT_INDEX,
         horizontal=True,
         key="input_type",
+        help=INPUT_TYPE_HELP,
     )
 
     sequence_input = ""
@@ -317,8 +339,10 @@ def get_single_app_input() -> SingleIsoInput:
         sequence_input = stp.text_input(
             label="Sequence",
             value=DEFAULT_SEQUENCE,
-            help="Enter the peptide sequence (e.g. PEPTIDE)",
+            placeholder=DEFAULT_SEQUENCE,
+            help=SEQUENCE_HELP,
             key="sequence_input",
+            
         )
 
         ion_type = stp.radio(
@@ -326,44 +350,72 @@ def get_single_app_input() -> SingleIsoInput:
             options=ION_TYPES,
             index=DEFAULT_ION_TYPE_INDEX,
             horizontal=True,
-            help="Ion type to calculate, p = precursor",
+            help=ION_TYPE_HELP,
             key="ion_type",
         )
 
     elif input_type == "Formula":
         sequence_input = stp.text_input(
-            label="Formula",
+            label="Chemical Formula",
             value=DEFAULT_FORMULA,
-            help="Enter the chemical formula (e.g. C6H12O6). Isotopes must be enclosed in "
-            "brackets (e.g. C[13]H12O6)",
+            help=FORMULA_HELP,
+            placeholder=DEFAULT_FORMULA,
             key="formula_input",
         )
 
     elif input_type == "Mass":
         sequence_input = str(stp.number_input(
-            label="Neutral (Monoisotopic) Mass",
+            label="Neutral Mass",
             value=DEFAULT_MASS,
             max_value=MAX_MASS,
             min_value=MIN_MASS,
             step=MASS_STEP,
             key="mass_input",
             format="%.4f",
-            help="Enter the neutral mass (e.g. 1000 Da)",
+            help=MASS_HELP,
         ))
 
-    # Common inputs for all types
-    charge = stp.number_input(
-        label="Charge",
-        value=DEFAULT_CHARGE,
-        min_value=MIN_CHARGE,
-        max_value=MAX_CHARGE,
-        step=CHARGE_STEP,
-        key="charge",
-        help="Enter the charge state (e.g. 2+)",
-    )
+    c1, c2 = st.columns(2)
+    with c1:
+        # Common inputs for all types
+        charge = stp.number_input(
+            label="Charge",
+            value=DEFAULT_CHARGE,
+            min_value=MIN_CHARGE,
+            max_value=MAX_CHARGE,
+            step=CHARGE_STEP,
+            key="charge",
+            help=CHARGE_HELP,
+        )
 
-    # Get other input settings
-    max_isotopes, min_abundance_threshold, use_neutron, distribution_resolution, is_intensity_sum, neutron_value = get_input_settings()
+    with c2:
+        intensity = stp.number_input(
+            label="intensity",
+            value=100.0,
+            min_value=0.0,
+            key="intensity",
+            help=INTENSITY_HELP,
+        )
+
+
+    with st.expander("Advanced Options", expanded=False):
+        # Get other input settings
+        max_isotopes, min_abundance_threshold, use_neutron, distribution_resolution, is_intensity_sum, neutron_value = get_input_settings()
+        line_width = stp.number_input(
+            "Line Width",
+            min_value=1,
+            max_value=10,
+            value=3,
+            step=1,
+            help="Set the line width for the plot.",
+            key="line_width")
+        
+        is_log = stp.toggle(
+            label="Log Scale",
+            value=False,
+            key="is_log",
+            help="Use log scale for the y-axis.",
+        )
 
 
     return SingleIsoInput(
@@ -376,8 +428,10 @@ def get_single_app_input() -> SingleIsoInput:
         use_neutron=use_neutron,
         distribution_resolution=distribution_resolution,
         neutron_value=neutron_value,
-        intensity=1,
+        intensity=intensity,
         is_intensity_sum=is_intensity_sum,
+        line_width=line_width,
+        is_log=is_log
     )
 
 
@@ -403,16 +457,16 @@ def get_multi_app_input() -> MultiIsoInput:
             "sequence": st.column_config.TextColumn(
                 "Sequence",
                 default="PEPTIDE",
-                help="Peptide sequence. Must be proforma2.0 compliant.",
+                help=SEQUENCE_HELP,
                 width="small",
                 required=True,
             ),
             "charge": st.column_config.NumberColumn(
-                "Charge", default=2, help="Charge state of the peptide.", width="small"
+                "Charge", default=2, help=CHARGE_HELP, width="small"
             ),
             "ion_type": st.column_config.SelectboxColumn(
                 "Ion Type",
-                help="Ion type to calculate the mass of the peptide.",
+                help=ION_TYPE_HELP,
                 default="p",
                 options=list("abcxyzpi"),
                 width="small",
@@ -421,14 +475,14 @@ def get_multi_app_input() -> MultiIsoInput:
             "intensity": st.column_config.NumberColumn(
                 "Intensity",
                 default=1000,
-                help="Intensity of the peptide.",
+                help=INTENSITY_HELP,
                 width="small",
                 required=True,
             ),
             "input_type": st.column_config.SelectboxColumn(
                 "Input Type",
                 default="peptide",
-                help="Input type of the peptide.",
+                help=INPUT_TYPE_HELP,
                 options=["Peptide", "Formula", "Mass"],
                 width="small",
                 required=True,
@@ -448,7 +502,28 @@ def get_multi_app_input() -> MultiIsoInput:
     # reset index
     df.reset_index(drop=True, inplace=True)
 
-    max_isotopes, min_abundance_threshold, use_neutron, distribution_resolution, is_intensity_sum, neutron_value = get_input_settings()
+    with st.expander("Advanced Options", expanded=False):
+        # Get other input settings
+        max_isotopes, min_abundance_threshold, use_neutron, distribution_resolution, is_intensity_sum, neutron_value = get_input_settings()
+
+        line_width = stp.number_input(
+            "Line Width",
+            min_value=1,
+            max_value=10,
+            value=3,
+            step=1,
+            help="Set the line width for the plot.",
+            key="line_width",
+        )
+
+        is_log = stp.toggle(
+            label="Log Scale",
+            value=False,
+            key="is_log",
+            help="Use log scale for the y-axis.",
+        )
+
+    
 
     # create a list of SingleIsoInput objects
     single_iso_inputs = []
@@ -466,6 +541,8 @@ def get_multi_app_input() -> MultiIsoInput:
                 neutron_value=neutron_value,  # Default to Averagine
                 intensity=row["intensity"],
                 is_intensity_sum=is_intensity_sum,
+                line_width=line_width,
+                is_log=is_log,
             )
         )
 
@@ -489,15 +566,18 @@ def construct_isotope_df(params: SingleIsoInput) -> pd.DataFrame:
     Construct a DataFrame of isotopes from the parameters.
     """
     df = pd.DataFrame(params.isotopes, columns=["neutral_mass", "abundance"])
-    
-    # filter the df
-    df = df[df["abundance"] > params.min_abundance_threshold]
 
     # sort the df
     df = df.sort_values(by="abundance", ascending=False)
 
+    # realtive abundance
+    if params.is_intensity_sum:
+        df["reative_abundance"] = df["abundance"] / df["abundance"].sum()
+    else:
+        df["reative_abundance"] = df["abundance"] / df["abundance"].max()
+
     # apply the charge state
-    df["mass_to_charge_ratio"] = (
+    df["mz"] = (
         (df["neutral_mass"] + params.charge * pt.PROTON_MASS) / params.charge
     )
 
@@ -505,48 +585,98 @@ def construct_isotope_df(params: SingleIsoInput) -> pd.DataFrame:
 
 def construct_figure(df: pd.DataFrame, params: SingleIsoInput) -> go.Figure:
     """
-    Construct a Plotly figure for the isotopes.
+    Construct a Plotly figure for the isotopes with both relative and absolute abundance axes.
     """
-    # Assuming `df` is your DataFrame with isotopes
+    # Create figure with secondary y-axis
     fig = go.Figure()
 
     # Add lines from each isotope marker to the base
     for idx, row in df.iterrows():
         fig.add_trace(
             go.Scatter(
-                x=[row['mass_to_charge_ratio'], row['mass_to_charge_ratio']],
-                y=[0, row["abundance"]*100],
+                x=[row['mz'], row['mz']],
+                y=[0, row["reative_abundance"]*100],
                 mode="lines",
-                line=dict(color="grey", width=3),
+                line=dict(color="grey", width=params.line_width),
                 showlegend=False,
+                yaxis="y"
             )
         )
-
     
-    # Add scatter plot for the isotopes markers
+    # Add scatter plot for the isotopes markers with relative abundance
     fig.add_trace(
         go.Scatter(
-            x=df['mass_to_charge_ratio'],
-            y=df['abundance']*100,
+            x=df['mz'],
+            y=df['reative_abundance']*100,
             mode="markers",
-            marker=dict(size=6, color="#007BFF"),
-            name="Isotopes",
+            marker=dict(size=params.line_width*2, color="grey"),
+            name="Relative Abundance (%)",
+            yaxis="y",
+            showlegend=False,
+
+        )
+    )
+    
+    # Add scatter plot for absolute abundance values on secondary axis
+    fig.add_trace(
+        go.Scatter(
+            x=df['mz'],
+            y=df['abundance'],
+            mode="markers",
+            marker=dict(size=params.line_width*2, color="grey", opacity=0.6),
+            name="Abundance",
+            yaxis="y2",
+            #dont show legend
+            showlegend=False,
+
         )
     )
 
+    y2_color = "rgba(77, 150, 214, 0.77)"
+    y_color = "rgba(55, 55, 55, 0.37)"
 
-    # Customize the plot for better readability
+    # Customize the plot with dual y-axes
     fig.update_layout(
-        title=f'Isotopic Distribution: {params.sequence} {"da" if params.input_type == "Mass" else ""}',
-        xaxis_title="Mass To Charge Ratio",
-        yaxis_title="Realtive Abundance (%)",
-        margin=dict(l=40, r=40, t=40, b=40),
+        xaxis_title="m/z",
+        yaxis=dict(
+            title="Relative Abundance (%)",
+            titlefont=dict(color="grey"),
+            tickfont=dict(color="grey"),
+            # change grid line color
+            gridcolor="rgba(55, 55, 55, 0.17)",
+            rangemode="nonnegative",  # Ensure non-negative range starting at 0
+            #make log
+            type="log" if params.is_log else "linear",
+
+        ),
+        yaxis2=dict(
+            title="Abundance",
+            titlefont=dict(color="rgba(77, 150, 214, 0.87)"),
+            tickfont=dict(color="rgba(77, 150, 214, 0.87)"),
+            showgrid=False,
+            # change grid line colro
+            gridcolor="rgba(77, 150, 214, 0.27)",
+            anchor="x",
+            overlaying="y",
+            side="right",
+            rangemode="nonnegative",  # Ensure non-negative range starting at 0
+            type="log" if params.is_log else "linear",
+
+        ),
+        margin=dict(l=40, r=60, t=40, b=40),
+        legend=dict(            
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
     )
 
     return fig
 
 
-def construct_multi_isotope_figure(df: pd.DataFrame) -> go.Figure:
+def construct_multi_isotope_figure(df: pd.DataFrame, line_width=3, is_log=False) -> go.Figure:
     """
     Construct a Plotly figure for multiple isotope distributions where each sequence
     is represented by a different color, and isotopes with the same m/z are stacked.
@@ -556,7 +686,7 @@ def construct_multi_isotope_figure(df: pd.DataFrame) -> go.Figure:
             and 'abundance' columns.
         
     Returns:
-        Plotly Figure object with colored and stacked isotope distributions.
+        Plotly Figure object with colored and stacked isotope distributions with dual y-axes.
     """
     # Create a new figure
     fig = go.Figure()
@@ -570,7 +700,7 @@ def construct_multi_isotope_figure(df: pd.DataFrame) -> go.Figure:
                       for i, seq in enumerate(sequences)}
     
     # Group by m/z values to stack isotopes with the same m/z
-    grouped_df = df.groupby('mass_to_charge_ratio')
+    grouped_df = df.groupby('mz')
     
     # Track which sequences have already been added to the legend
     legend_shown = set()
@@ -578,72 +708,125 @@ def construct_multi_isotope_figure(df: pd.DataFrame) -> go.Figure:
     # Find maximum abundance sum for y-axis scaling
     max_total_abundance = 0
     
+    # Calculate relative abundances (primary y-axis)
+    total_abundance_per_mz = {}
+    max_abundance_overall = df['abundance'].max()
+    
+    # First calculate total abundance per m/z group
+    for mz, group in grouped_df:
+        total_abundance = group['abundance'].sum()
+        total_abundance_per_mz[mz] = total_abundance
+        max_total_abundance = max(max_total_abundance, total_abundance)
+    
     # Process each m/z group
     for mz, group in grouped_df:
         # Sort by sequence to ensure consistent stacking order
         group = group.sort_values('sequence')
         
         # Stack heights for this m/z
-        current_height = 0
+        current_height_abs = 0
+        current_height_rel = 0
         
         for _, row in group.iterrows():
             sequence = row['sequence']
             abundance = row['abundance']
             
-            # Add stacked bar for this sequence
+            # Calculate relative abundance (0-100%)
+            relative_abundance = row['relative_abundance'] * 100
+            
+            # Add stacked bar for absolute abundance (secondary y-axis)
             fig.add_trace(
                 go.Scatter(
                     x=[mz, mz],
-                    y=[current_height, current_height + abundance],
+                    y=[current_height_abs, current_height_abs + abundance],
                     mode="lines",
-                    line=dict(color=sequence_colors[sequence], width=3),
+                    line=dict(color=sequence_colors[sequence], width=line_width),
                     name=sequence,
                     legendgroup=sequence,
-                    showlegend=(sequence not in legend_shown)  # Show legend only once per sequence
+                    showlegend=(sequence not in legend_shown),  # Show legend only once per sequence
+                    yaxis="y2"
                 )
             )
             
-            # Add marker at the top of each bar segment
+            # Add marker at the top of each absolute abundance bar segment
             fig.add_trace(
                 go.Scatter(
                     x=[mz],
-                    y=[current_height + abundance],
+                    y=[current_height_abs + abundance],
                     mode="markers",
                     marker=dict(
-                        size=6,
+                        size=line_width*2,
                         color=sequence_colors[sequence]
                     ),
                     legendgroup=sequence,
                     showlegend=False,
+                    yaxis="y2"
                 )
             )
             
-            # Update current height for stacking
-            current_height += abundance
+            # Add stacked bar for relative abundance (primary y-axis)
+            fig.add_trace(
+                go.Scatter(
+                    x=[mz, mz],
+                    y=[current_height_rel, current_height_rel + relative_abundance],
+                    mode="lines",
+                    line=dict(color=sequence_colors[sequence], width=0, dash="dot"),
+                    legendgroup=sequence,
+                    showlegend=False,
+                    yaxis="y"
+                )
+            )
+            
+            # Update current heights for stacking
+            current_height_abs += abundance
+            current_height_rel += relative_abundance
             
             # Mark this sequence as shown in the legend
             legend_shown.add(sequence)
-        
-        # Update the maximum total abundance
-        max_total_abundance = max(max_total_abundance, current_height)
     
-    # Customize the plot for better readability
+    y_color = "rgba(55, 55, 55, 0.77)"
+    y2_color = "rgba(77, 150, 214, 0.77)"
+    
+    # Customize the plot with dual y-axes
     fig.update_layout(
         title="Isotopic Distribution",
-        xaxis_title="Mass To Charge Ratio",
+        xaxis_title="m/z",
         yaxis=dict(
-            title="Abundance",
-            range=[0, max_total_abundance * 1.05],
-            showgrid=True,
+            title="Relative Abundance (%)",
+            titlefont=dict(color=y_color),
+            tickfont=dict(color=y_color),
+            gridcolor="rgba(55, 55, 55, 0.17)",
+            rangemode="nonnegative",  # Ensure non-negative range starting at 0
+            zeroline=True,           # Show zero line
+            type="log" if is_log else "linear",
+
         ),
-        margin=dict(l=40, r=40, t=40, b=40),
+        yaxis2=dict(
+            title="Absolute Abundance",
+            titlefont=dict(color=y2_color),
+            tickfont=dict(color=y2_color),
+            anchor="x",
+            overlaying="y",
+            side="right",
+            showgrid=False,
+            gridcolor="rgba(77, 150, 214, 0.27)",
+            rangemode="nonnegative",  # Ensure non-negative range starting at 0
+            zeroline=True,           # Show zero line
+            # is log
+            type="log" if is_log else "linear",
+        ),
+        margin=dict(l=40, r=60, t=40, b=40),
         legend=dict(
-            yanchor="top",
-            y=0.99,
-            xanchor="right", 
-            x=0.99
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
         )
     )
+    
+    # Force both axes to include zero in their range
+    fig.update_yaxes(rangemode="nonnegative", constrain="domain")
     
     return fig
 
