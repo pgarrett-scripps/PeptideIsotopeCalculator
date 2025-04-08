@@ -47,6 +47,7 @@ with st.sidebar:
 
 
     # Get all input parameters from the user
+    st.subheader('Options', divider='grey')
     params = get_single_app_input()
     add_dumb_mobile_buffer()
 
@@ -89,7 +90,7 @@ with top_window:
     st.plotly_chart(fig)
 
     # Show isotope table
-    st.title("Isotopic Distribution Table")
+    #st.title("Isotopic Distribution Table")
 
     height = min(int(35.3 * (len(df) + 1)), 1000)
     st.dataframe(

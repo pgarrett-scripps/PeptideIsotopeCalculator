@@ -637,6 +637,7 @@ def construct_figure(df: pd.DataFrame, params: SingleIsoInput) -> go.Figure:
 
     # Customize the plot with dual y-axes
     fig.update_layout(
+                title="Isotopic Distribution",
         xaxis_title="m/z",
         yaxis=dict(
             title="Relative Abundance (%)",
@@ -817,7 +818,7 @@ def construct_multi_isotope_figure(df: pd.DataFrame, line_width=3, is_log=False)
         ),
         margin=dict(l=40, r=60, t=40, b=40),
         legend=dict(
-            orientation="h",
+            orientation="v",
             yanchor="bottom",
             y=1.02,
             xanchor="right",

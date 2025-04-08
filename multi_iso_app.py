@@ -51,8 +51,7 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
 
-    st.subheader("Input Table")
-
+    st.subheader('Options', divider='grey')
     params = get_multi_app_input()
     add_dumb_mobile_buffer()
 
@@ -128,7 +127,7 @@ with top_window:
     st.plotly_chart(fig)
 
     # Show isotope table
-    st.title("Isotopic Distribution Table")
+    #st.title("Isotopic Distribution Table")
 
     height = min(int(35.3 * (len(df) + 1)), 1000)
     st.dataframe(
