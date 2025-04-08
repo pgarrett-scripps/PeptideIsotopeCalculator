@@ -40,35 +40,35 @@ class SingleIsoInput:
         Check if the input type is peptide.
         """
         return self.input_type == "Peptide"
-    
+
     @property
     def is_formula(self) -> bool:
         """
         Check if the input type is formula.
         """
         return self.input_type == "Formula"
-    
+
     @property
     def is_mass(self) -> bool:
         """
         Check if the input type is mass.
         """
         return self.input_type == "Mass"
-    
+
     @property
     def composition(self) -> dict:
         """
         Get the composition of the input.
         """
         if self.is_peptide:
-            return pt.comp_mass(self.sequence, self.ion_type)[0]        
+            return pt.comp_mass(self.sequence, self.ion_type)[0]
         if self.is_formula:
             return pt.parse_chem_formula(self.sequence)
         if self.is_mass:
             return pt.estimate_comp(float(self.sequence))
-        
+
         raise ValueError("Invalid input type")
-    
+
     @property
     def chemical_formula(self) -> str:
         """
@@ -80,9 +80,9 @@ class SingleIsoInput:
             return pt.write_chem_formula(self.composition, precision=1)
         if self.is_mass:
             return pt.write_chem_formula(self.composition, hill_order=True, precision=1)
-        
+
         raise ValueError("Invalid input type")
-    
+
     @property
     def neutral_mass(self) -> float:
         """
@@ -94,9 +94,9 @@ class SingleIsoInput:
             return pt.chem_mass(self.sequence)
         if self.is_mass:
             return float(self.sequence)
-        
+
         raise ValueError("Invalid input type")
-    
+
     @property
     def mass(self) -> float:
         """
@@ -108,9 +108,8 @@ class SingleIsoInput:
             return pt.chem_mass(self.sequence) + self.charge * pt.PROTON_MASS
         if self.is_mass:
             return float(self.sequence) + self.charge * pt.PROTON_MASS
-        
-        raise ValueError("Invalid input type")
 
+        raise ValueError("Invalid input type")
 
     @property
     def mz(self) -> float:
@@ -121,10 +120,9 @@ class SingleIsoInput:
             return (self.neutral_mass + self.charge * pt.PROTON_MASS) / self.charge
         if self.is_formula or self.is_mass:
             return (self.neutral_mass + self.charge * pt.PROTON_MASS) / self.charge
-        
+
         raise ValueError("Invalid input type")
-    
-    
+
     @property
     def isotopes(self):
         # Calculate isotopic distributions based on input type
@@ -140,7 +138,6 @@ class SingleIsoInput:
                 is_abundance_sum=self.is_intensity_sum,
                 output_masses_for_neutron_offset=True,
                 neutron_mass=self.neutron_value,
-
             )
         elif self.is_mass:
             isotopes = pt.estimate_isotopic_distribution(
@@ -157,16 +154,14 @@ class SingleIsoInput:
             )
         else:
             raise ValueError("Invalid input type")
-        
+
         # add delta mass
         if self.delta_mass != 0:
             isotopes = [
-                (mass + self.delta_mass, abundance)
-                for mass, abundance in isotopes
+                (mass + self.delta_mass, abundance) for mass, abundance in isotopes
             ]
 
         return isotopes
-
 
     @property
     def delta_mass(self) -> float:
@@ -177,16 +172,16 @@ class SingleIsoInput:
             return 0
         if self.is_mass:
             return 0
-        
+
         raise ValueError("Invalid input type")
+
 
 def validate_input(self):
 
-    
     if self.is_peptide and not self.sequence:
         st.warning("Please enter a sequence.")
         st.stop()
-    
+
     if len(self.isotopes) == 0:
         st.error("No isotopes found.")
         st.stop()
@@ -225,14 +220,14 @@ class MultiIsoInput:
         Check if the input type is intensity sum.
         """
         return self.single_iso_inputs[0].is_intensity_sum
-    
+
     @property
     def line_width(self) -> int:
         """
         Get the line width of the input.
         """
         return self.single_iso_inputs[0].line_width
-    
+
     @property
     def is_log(self) -> bool:
         """
@@ -240,9 +235,9 @@ class MultiIsoInput:
         """
         return self.single_iso_inputs[0].is_log
 
-            
+
 def get_input_settings() -> tuple:
-    
+
     c1, c2 = st.columns(2)
     with c1:
         max_isotopes = stp.number_input(
@@ -271,11 +266,12 @@ def get_input_settings() -> tuple:
         )
 
         is_intensity_sum = stp.toggle(
-                label="Intensity Sum",
-                value=DEFAULT_IS_INTENSITY_SUM,
-                key="is_intensity_sum",
-                help=INTENSITY_SUM_HELP)
-        
+            label="Intensity Sum",
+            value=DEFAULT_IS_INTENSITY_SUM,
+            key="is_intensity_sum",
+            help=INTENSITY_SUM_HELP,
+        )
+
     distribution_resolution = DEFAULT_DISTRIBUTION_RESOLUTION
     neutron_value = None
     if not use_neutron:
@@ -288,7 +284,7 @@ def get_input_settings() -> tuple:
             help=RESOLUTION_HELP,
             key="distribution_resolution",
         )
-        
+
     neutron_option = stp.selectbox(
         label="Neutron Mass",
         options=NEUTRON_MASS_OPTIONS,
@@ -314,7 +310,15 @@ def get_input_settings() -> tuple:
 
     st.caption(f"Neutron Mass: {neutron_value:.6f} Da")
 
-    return max_isotopes, min_abundance_threshold, use_neutron, distribution_resolution, is_intensity_sum, neutron_value
+    return (
+        max_isotopes,
+        min_abundance_threshold,
+        use_neutron,
+        distribution_resolution,
+        is_intensity_sum,
+        neutron_value,
+    )
+
 
 def get_single_app_input() -> SingleIsoInput:
     """
@@ -342,7 +346,6 @@ def get_single_app_input() -> SingleIsoInput:
             placeholder=DEFAULT_SEQUENCE,
             help=SEQUENCE_HELP,
             key="sequence_input",
-            
         )
 
         ion_type = stp.radio(
@@ -364,16 +367,18 @@ def get_single_app_input() -> SingleIsoInput:
         )
 
     elif input_type == "Mass":
-        sequence_input = str(stp.number_input(
-            label="Neutral Mass",
-            value=DEFAULT_MASS,
-            max_value=MAX_MASS,
-            min_value=MIN_MASS,
-            step=MASS_STEP,
-            key="mass_input",
-            format="%.4f",
-            help=MASS_HELP,
-        ))
+        sequence_input = str(
+            stp.number_input(
+                label="Neutral Mass",
+                value=DEFAULT_MASS,
+                max_value=MAX_MASS,
+                min_value=MIN_MASS,
+                step=MASS_STEP,
+                key="mass_input",
+                format="%.4f",
+                help=MASS_HELP,
+            )
+        )
 
     c1, c2 = st.columns(2)
     with c1:
@@ -397,10 +402,16 @@ def get_single_app_input() -> SingleIsoInput:
             help=INTENSITY_HELP,
         )
 
-
     with st.expander("Advanced Options", expanded=False):
         # Get other input settings
-        max_isotopes, min_abundance_threshold, use_neutron, distribution_resolution, is_intensity_sum, neutron_value = get_input_settings()
+        (
+            max_isotopes,
+            min_abundance_threshold,
+            use_neutron,
+            distribution_resolution,
+            is_intensity_sum,
+            neutron_value,
+        ) = get_input_settings()
         line_width = stp.number_input(
             "Line Width",
             min_value=1,
@@ -408,15 +419,15 @@ def get_single_app_input() -> SingleIsoInput:
             value=3,
             step=1,
             help="Set the line width for the plot.",
-            key="line_width")
-        
+            key="line_width",
+        )
+
         is_log = stp.toggle(
             label="Log Scale",
             value=False,
             key="is_log",
             help="Use log scale for the y-axis.",
         )
-
 
     return SingleIsoInput(
         input_type=input_type,
@@ -431,7 +442,7 @@ def get_single_app_input() -> SingleIsoInput:
         intensity=intensity,
         is_intensity_sum=is_intensity_sum,
         line_width=line_width,
-        is_log=is_log
+        is_log=is_log,
     )
 
 
@@ -440,7 +451,7 @@ def get_multi_app_input() -> MultiIsoInput:
     Get a multi app input from the user and return a MultiIsoInput object.
     No validation is performed on the input.
     """
-    
+
     default_df = pd.DataFrame(
         {
             "sequence": ["PEPTIDE", "PEPTIDEPEPTIDE"],
@@ -504,7 +515,14 @@ def get_multi_app_input() -> MultiIsoInput:
 
     with st.expander("Advanced Options", expanded=False):
         # Get other input settings
-        max_isotopes, min_abundance_threshold, use_neutron, distribution_resolution, is_intensity_sum, neutron_value = get_input_settings()
+        (
+            max_isotopes,
+            min_abundance_threshold,
+            use_neutron,
+            distribution_resolution,
+            is_intensity_sum,
+            neutron_value,
+        ) = get_input_settings()
 
         line_width = stp.number_input(
             "Line Width",
@@ -522,8 +540,6 @@ def get_multi_app_input() -> MultiIsoInput:
             key="is_log",
             help="Use log scale for the y-axis.",
         )
-
-    
 
     # create a list of SingleIsoInput objects
     single_iso_inputs = []
@@ -549,7 +565,6 @@ def get_multi_app_input() -> MultiIsoInput:
     return MultiIsoInput(single_iso_inputs=single_iso_inputs)
 
 
-
 def add_dumb_mobile_buffer():
     # blank space for mobile cause streamlit is weird
     st.markdown("<br>", unsafe_allow_html=True)
@@ -558,7 +573,6 @@ def add_dumb_mobile_buffer():
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
-    
 
 
 def construct_isotope_df(params: SingleIsoInput) -> pd.DataFrame:
@@ -577,11 +591,10 @@ def construct_isotope_df(params: SingleIsoInput) -> pd.DataFrame:
         df["reative_abundance"] = df["abundance"] / df["abundance"].max()
 
     # apply the charge state
-    df["mz"] = (
-        (df["neutral_mass"] + params.charge * pt.PROTON_MASS) / params.charge
-    )
+    df["mz"] = (df["neutral_mass"] + params.charge * pt.PROTON_MASS) / params.charge
 
     return df
+
 
 def construct_figure(df: pd.DataFrame, params: SingleIsoInput) -> go.Figure:
     """
@@ -594,50 +607,45 @@ def construct_figure(df: pd.DataFrame, params: SingleIsoInput) -> go.Figure:
     for idx, row in df.iterrows():
         fig.add_trace(
             go.Scatter(
-                x=[row['mz'], row['mz']],
-                y=[0, row["reative_abundance"]*100],
+                x=[row["mz"], row["mz"]],
+                y=[0, row["reative_abundance"] * 100],
                 mode="lines",
                 line=dict(color="grey", width=params.line_width),
                 showlegend=False,
-                yaxis="y"
+                yaxis="y",
             )
         )
-    
+
     # Add scatter plot for the isotopes markers with relative abundance
     fig.add_trace(
         go.Scatter(
-            x=df['mz'],
-            y=df['reative_abundance']*100,
+            x=df["mz"],
+            y=df["reative_abundance"] * 100,
             mode="markers",
-            marker=dict(size=params.line_width*2, color="grey"),
+            marker=dict(size=params.line_width * 2, color="grey"),
             name="Relative Abundance (%)",
             yaxis="y",
             showlegend=False,
-
         )
     )
-    
+
     # Add scatter plot for absolute abundance values on secondary axis
     fig.add_trace(
         go.Scatter(
-            x=df['mz'],
-            y=df['abundance'],
+            x=df["mz"],
+            y=df["abundance"],
             mode="markers",
-            marker=dict(size=params.line_width*2, color="grey", opacity=0.6),
+            marker=dict(size=params.line_width * 2, color="grey", opacity=0.6),
             name="Abundance",
             yaxis="y2",
-            #dont show legend
+            # dont show legend
             showlegend=False,
-
         )
     )
 
-    y2_color = "rgba(77, 150, 214, 0.77)"
-    y_color = "rgba(55, 55, 55, 0.37)"
-
     # Customize the plot with dual y-axes
     fig.update_layout(
-                title="Isotopic Distribution",
+        title="Isotopic Distribution",
         xaxis_title="m/z",
         yaxis=dict(
             title="Relative Abundance (%)",
@@ -646,9 +654,8 @@ def construct_figure(df: pd.DataFrame, params: SingleIsoInput) -> go.Figure:
             # change grid line color
             gridcolor="rgba(55, 55, 55, 0.17)",
             rangemode="nonnegative",  # Ensure non-negative range starting at 0
-            #make log
+            # make log
             type="log" if params.is_log else "linear",
-
         ),
         yaxis2=dict(
             title="Abundance",
@@ -662,79 +669,76 @@ def construct_figure(df: pd.DataFrame, params: SingleIsoInput) -> go.Figure:
             side="right",
             rangemode="nonnegative",  # Ensure non-negative range starting at 0
             type="log" if params.is_log else "linear",
-
         ),
         margin=dict(l=40, r=60, t=40, b=40),
-        legend=dict(            
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1
-        )
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
 
     return fig
 
 
-def construct_multi_isotope_figure(df: pd.DataFrame, line_width=3, is_log=False) -> go.Figure:
+def construct_multi_isotope_figure(
+    df: pd.DataFrame, line_width=3, is_log=False
+) -> go.Figure:
     """
     Construct a Plotly figure for multiple isotope distributions where each sequence
     is represented by a different color, and isotopes with the same m/z are stacked.
-    
+
     Args:
         df: DataFrame containing isotope data with 'sequence', 'mass_to_charge_ratio',
             and 'abundance' columns.
-        
+
     Returns:
         Plotly Figure object with colored and stacked isotope distributions with dual y-axes.
     """
     # Create a new figure
     fig = go.Figure()
-    
+
     # Get unique sequences for coloring
-    sequences = df['sequence'].unique()
-    
+    sequences = df["sequence"].unique()
+
     # Create a color map for the sequences
-    colormap = plt.cm.get_cmap('tab10', len(sequences))
-    sequence_colors = {seq: f'rgba({int(255*colormap(i)[0])}, {int(255*colormap(i)[1])}, {int(255*colormap(i)[2])}, 0.8)'
-                      for i, seq in enumerate(sequences)}
-    
+    colormap = plt.cm.get_cmap("tab10", len(sequences))
+    sequence_colors = {
+        seq: f"rgba({int(255*colormap(i)[0])}, {int(255*colormap(i)[1])}, {int(255*colormap(i)[2])}, 0.8)"
+        for i, seq in enumerate(sequences)
+    }
+
     # Group by m/z values to stack isotopes with the same m/z
-    grouped_df = df.groupby('mz')
-    
+    grouped_df = df.groupby("mz")
+
     # Track which sequences have already been added to the legend
     legend_shown = set()
-    
+
     # Find maximum abundance sum for y-axis scaling
     max_total_abundance = 0
-    
+
     # Calculate relative abundances (primary y-axis)
     total_abundance_per_mz = {}
-    max_abundance_overall = df['abundance'].max()
-    
+    max_abundance_overall = df["abundance"].max()
+
     # First calculate total abundance per m/z group
     for mz, group in grouped_df:
-        total_abundance = group['abundance'].sum()
+        total_abundance = group["abundance"].sum()
         total_abundance_per_mz[mz] = total_abundance
         max_total_abundance = max(max_total_abundance, total_abundance)
-    
+
     # Process each m/z group
     for mz, group in grouped_df:
         # Sort by sequence to ensure consistent stacking order
-        group = group.sort_values('sequence')
-        
+        group = group.sort_values("sequence")
+
         # Stack heights for this m/z
         current_height_abs = 0
         current_height_rel = 0
-        
+
         for _, row in group.iterrows():
-            sequence = row['sequence']
-            abundance = row['abundance']
-            
+            sequence = row["sequence"]
+            abundance = row["abundance"]
+
             # Calculate relative abundance (0-100%)
-            relative_abundance = row['relative_abundance'] * 100
-            
+            relative_abundance = row["relative_abundance"] * 100
+
             # Add stacked bar for absolute abundance (secondary y-axis)
             fig.add_trace(
                 go.Scatter(
@@ -744,27 +748,26 @@ def construct_multi_isotope_figure(df: pd.DataFrame, line_width=3, is_log=False)
                     line=dict(color=sequence_colors[sequence], width=line_width),
                     name=sequence,
                     legendgroup=sequence,
-                    showlegend=(sequence not in legend_shown),  # Show legend only once per sequence
-                    yaxis="y2"
+                    showlegend=(
+                        sequence not in legend_shown
+                    ),  # Show legend only once per sequence
+                    yaxis="y2",
                 )
             )
-            
+
             # Add marker at the top of each absolute abundance bar segment
             fig.add_trace(
                 go.Scatter(
                     x=[mz],
                     y=[current_height_abs + abundance],
                     mode="markers",
-                    marker=dict(
-                        size=line_width*2,
-                        color=sequence_colors[sequence]
-                    ),
+                    marker=dict(size=line_width * 2, color=sequence_colors[sequence]),
                     legendgroup=sequence,
                     showlegend=False,
-                    yaxis="y2"
+                    yaxis="y2",
                 )
             )
-            
+
             # Add stacked bar for relative abundance (primary y-axis)
             fig.add_trace(
                 go.Scatter(
@@ -774,20 +777,20 @@ def construct_multi_isotope_figure(df: pd.DataFrame, line_width=3, is_log=False)
                     line=dict(color=sequence_colors[sequence], width=0, dash="dot"),
                     legendgroup=sequence,
                     showlegend=False,
-                    yaxis="y"
+                    yaxis="y",
                 )
             )
-            
+
             # Update current heights for stacking
             current_height_abs += abundance
             current_height_rel += relative_abundance
-            
+
             # Mark this sequence as shown in the legend
             legend_shown.add(sequence)
-    
+
     y_color = "rgba(55, 55, 55, 0.77)"
     y2_color = "rgba(77, 150, 214, 0.77)"
-    
+
     # Customize the plot with dual y-axes
     fig.update_layout(
         title="Isotopic Distribution",
@@ -798,9 +801,8 @@ def construct_multi_isotope_figure(df: pd.DataFrame, line_width=3, is_log=False)
             tickfont=dict(color=y_color),
             gridcolor="rgba(55, 55, 55, 0.17)",
             rangemode="nonnegative",  # Ensure non-negative range starting at 0
-            zeroline=True,           # Show zero line
+            zeroline=True,  # Show zero line
             type="log" if is_log else "linear",
-
         ),
         yaxis2=dict(
             title="Absolute Abundance",
@@ -812,23 +814,17 @@ def construct_multi_isotope_figure(df: pd.DataFrame, line_width=3, is_log=False)
             showgrid=False,
             gridcolor="rgba(77, 150, 214, 0.27)",
             rangemode="nonnegative",  # Ensure non-negative range starting at 0
-            zeroline=True,           # Show zero line
+            zeroline=True,  # Show zero line
             # is log
             type="log" if is_log else "linear",
         ),
         margin=dict(l=40, r=60, t=40, b=40),
-        legend=dict(
-            orientation="v",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1
-        )
+        legend=dict(orientation="v", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
-    
+
     # Force both axes to include zero in their range
     fig.update_yaxes(rangemode="nonnegative", constrain="domain")
-    
+
     return fig
 
 
@@ -847,14 +843,14 @@ def listify(o=None):
 def shorten_url(url: str) -> str:
     """Shorten a URL using TinyURL."""
     api_url = f"http://tinyurl.com/api-create.php?url={url}"
-    
+
     try:
         response = requests.get(api_url)
         response.raise_for_status()
         return response.text
     except requests.RequestException as e:
         return f"Error: {e}"
-    
+
 
 def get_query_params_url(params_dict):
     """

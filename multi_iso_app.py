@@ -6,17 +6,17 @@ import plotly.graph_objects as go
 import pandas as pd
 from streamlit_js_eval import get_page_location
 
-from util import (get_multi_app_input, 
-                  add_dumb_mobile_buffer, 
-                  validate_input, 
-                  construct_isotope_df,
-                  construct_multi_isotope_figure,
-                    get_query_params_url,
-                    shorten_url)
-
-st.set_page_config(
-    page_title="Multi-IsoCalc", page_icon="📊"
+from util import (
+    get_multi_app_input,
+    add_dumb_mobile_buffer,
+    validate_input,
+    construct_isotope_df,
+    construct_multi_isotope_figure,
+    get_query_params_url,
+    shorten_url,
 )
+
+st.set_page_config(page_title="Multi-IsoCalc", page_icon="📊")
 
 with st.sidebar:
 
@@ -32,8 +32,8 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
-
-    st.markdown(f"""
+    st.markdown(
+        f"""
         <div style='text-align: center; padding: 15px; top-margin: 0px'>
             <h3 style='margin: 0; font-size: 1.5em; color: #333;'>Multi-IsoCalc 📊</h3>
             <p style='font-size: 1.0em; line-height: 1.6; color: #555;'>
@@ -41,17 +41,14 @@ with st.sidebar:
                 Peptide and Formula inputs must be 
                 <a href="https://peptacular.readthedocs.io/en/latest/modules/getting_started.html#proforma-notation" 
                 target="_blank" style='color: #007BFF; text-decoration: none;'>proforma2.0 compliant</a>.
-                Neutral Mass is in Daltons (Da). Distributions are calculated prior to applying charge state 
-                or ambiguous masses (so charge adducts and delta mass mods are ignored). Powered by 
-                <a href="https://github.com/pgarrett-scripps/peptacular" target="_blank" style='color: #007BFF; text-decoration: none;'>
-                    <strong>Peptacular</strong>
-                </a>.
+                Neutral Mass will be converted to a composition using the avergine peptide composition.
             </p>
         </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
-
-    st.subheader('Options', divider='grey')
+    st.subheader("Options", divider="grey")
     params = get_multi_app_input()
     add_dumb_mobile_buffer()
 
@@ -63,7 +60,6 @@ with bottom_window:
 
 with top_window:
 
-
     title_c, _, button_c = st.columns([2, 1, 1])
     help_msg = "This page's URL automatically updates with your input and can be shared with others. You can optionally use the Generate TinyURL button to create a shortened URL."
     title_c.header("Results", help=help_msg)
@@ -72,22 +68,25 @@ with top_window:
     for single_iso_param in params.single_iso_inputs:
         validate_input(single_iso_param)
         single_df = construct_isotope_df(single_iso_param)
-        single_df['sequence'] = single_iso_param.sequence
+        single_df["sequence"] = single_iso_param.sequence
         df = pd.concat([df, single_df], ignore_index=True)
 
-
-    df['relative_abundance'] = None
-    max_abundance = df['abundance'].max()
-    sum_abundance = df['abundance'].sum()
+    df["relative_abundance"] = None
+    max_abundance = df["abundance"].max()
+    sum_abundance = df["abundance"].sum()
     for single_iso_param in params.single_iso_inputs:
         # Normalize the abundances to sum to 100%
-        seq_flag = df['sequence'] == single_iso_param.sequence
+        seq_flag = df["sequence"] == single_iso_param.sequence
         if params.is_intensity_sum:
             # Normalize to sum to 100%
-            df.loc[seq_flag, 'relative_abundance'] = df.loc[seq_flag, 'abundance'] / sum_abundance
+            df.loc[seq_flag, "relative_abundance"] = (
+                df.loc[seq_flag, "abundance"] / sum_abundance
+            )
         else:
             # Normalize to the most abundant peak
-            df.loc[seq_flag, 'relative_abundance'] = df.loc[seq_flag, 'abundance'] / max_abundance
+            df.loc[seq_flag, "relative_abundance"] = (
+                df.loc[seq_flag, "abundance"] / max_abundance
+            )
 
     # Create a single table with multiple rows for all parameters
     table_html = """
@@ -123,11 +122,13 @@ with top_window:
     # Display the complete table once
     st.html(table_html)
 
-    fig = construct_multi_isotope_figure(df, line_width=params.line_width, is_log=params.is_log)
+    fig = construct_multi_isotope_figure(
+        df, line_width=params.line_width, is_log=params.is_log
+    )
     st.plotly_chart(fig)
 
     # Show isotope table
-    #st.title("Isotopic Distribution Table")
+    # st.title("Isotopic Distribution Table")
 
     height = min(int(35.3 * (len(df) + 1)), 1000)
     st.dataframe(
@@ -149,8 +150,8 @@ with top_window:
                 width="small",
             ),
             "neutral_mass": st.column_config.NumberColumn(
-                "Neutral Mass", 
-                help="Neutral mass of the isotope.", 
+                "Neutral Mass",
+                help="Neutral mass of the isotope.",
                 width="small",
                 format="%.4f",
             ),
@@ -166,7 +167,7 @@ with top_window:
                 width="small",
                 format="%.2f",
             ),
-                "relative_abundance": st.column_config.NumberColumn(
+            "relative_abundance": st.column_config.NumberColumn(
                 "Relative Abundance",
                 help="Abundance of the isotope.",
                 width="small",
@@ -182,21 +183,18 @@ with top_window:
         data=df.to_csv(index=False),
         file_name="isotopic_distribution.csv",
         mime="text/csv",
-        type='secondary',
+        type="secondary",
         use_container_width=True,
-        on_click='ignore',
+        on_click="ignore",
         help="Download the isotopic distribution table as a CSV file.",
-
     )
 
-
-    if page_loc and 'origin' in page_loc:
-        url_origin = page_loc['origin']
+    if page_loc and "origin" in page_loc:
+        url_origin = page_loc["origin"]
         if button_c.button("Generate TinyURL", key="generate_tinyurl", type="primary"):
             url_params = {k: st.query_params.get_all(k) for k in st.query_params.keys()}
             page_url = f"{url_origin}{get_query_params_url(url_params)}"
             short_url = shorten_url(page_url)
-
 
             @st.dialog(title="Share your results")
             def url_dialog(url):
@@ -204,10 +202,10 @@ with top_window:
 
             url_dialog(short_url)
 
-
     st.divider()
 
-    st.markdown(f"""
+    st.markdown(
+        f"""
         <div style='display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-top: 0px solid #ddd;'>
             <div style='text-align: left; font-size: 1.1em; color: #555;'>
                 <a href="https://github.com/pgarrett-scripps/PeptideIsotopeCalculator" target="_blank" 
@@ -230,4 +228,6 @@ with top_window:
                 </a>
             </div>
         </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )

@@ -47,14 +47,20 @@ NEUTRON_MASS_HELP = """Select the mass difference to use between isotope peaks:
 - Custom: Specify your own value"""
 
 # Custom Neutron Mass Help
-CUSTOM_NEUTRON_MASS_HELP = "Enter a custom mass difference (in Da) to use between isotope peaks."
+CUSTOM_NEUTRON_MASS_HELP = (
+    "Enter a custom mass difference (in Da) to use between isotope peaks."
+)
 
 # Data Editor Help Messages
-SEQUENCE_EDITOR_HELP = "Enter peptide sequence. Must follow ProForma 2.0 notation for modifications."
+SEQUENCE_EDITOR_HELP = (
+    "Enter peptide sequence. Must follow ProForma 2.0 notation for modifications."
+)
 CHARGE_EDITOR_HELP = "Specify the charge state of the peptide/molecule."
 ION_TYPE_EDITOR_HELP = "Ion type for mass calculation: p (precursor), a/b/c (N-terminal), x/y/z (C-terminal), i (immonium)."
 INTENSITY_EDITOR_HELP = "Relative abundance/intensity of this molecule in the plot."
-INPUT_TYPE_EDITOR_HELP = "Select whether this entry is a peptide sequence, formula, or mass value."
+INPUT_TYPE_EDITOR_HELP = (
+    "Select whether this entry is a peptide sequence, formula, or mass value."
+)
 
 # Plot Help Messages
 MZ_AXIS_HELP = "Mass-to-charge ratio (m/z) in Daltons/charge."
