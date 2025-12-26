@@ -133,7 +133,7 @@ with top_window:
     height = min(int(35.3 * (len(df) + 1)), 1000)
     st.dataframe(
         df,
-        use_container_width=True,
+        width='stretch',
         hide_index=True,
         height=height,
         column_order=[
@@ -184,7 +184,7 @@ with top_window:
         file_name="isotopic_distribution.csv",
         mime="text/csv",
         type="secondary",
-        use_container_width=True,
+        width='stretch',
         on_click="ignore",
         help="Download the isotopic distribution table as a CSV file.",
     )

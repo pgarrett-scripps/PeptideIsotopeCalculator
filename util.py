@@ -56,16 +56,16 @@ class SingleIsoInput:
         return self.input_type == "Mass"
 
     @property
-    def composition(self) -> dict:
+    def composition(self) -> Counter[pt.ElementInfo]:
         """
         Get the composition of the input.
         """
         if self.is_peptide:
-            return pt.comp_mass(self.sequence, self.ion_type)[0]
+            return pt.comp(self.sequence, self.ion_type)
         if self.is_formula:
-            return pt.parse_chem_formula(self.sequence)
+            return pt.chem_comp(self.sequence)
         if self.is_mass:
-            return pt.estimate_comp(float(self.sequence))
+            return pt.averagine_comp(float(self.sequence))
 
         raise ValueError("Invalid input type")
 
@@ -75,11 +75,11 @@ class SingleIsoInput:
         Get the chemical formula of the input.
         """
         if self.is_peptide:
-            return pt.write_chem_formula(self.composition, hill_order=True, precision=1)
+            return pt.chem_formula(self.composition, hill_order=True)
         if self.is_formula:
-            return pt.write_chem_formula(self.composition, precision=1)
+            return pt.chem_formula(self.composition)
         if self.is_mass:
-            return pt.write_chem_formula(self.composition, hill_order=True, precision=1)
+            return pt.chem_formula(self.composition, hill_order=True)
 
         raise ValueError("Invalid input type")
 
@@ -126,84 +126,83 @@ class SingleIsoInput:
     @property
     def isotopes(self):
         # Calculate isotopic distributions based on input type
-        if self.is_peptide or self.is_formula:
-            isotopes = pt.isotopic_distribution(
+        if self.is_peptide:
+            isotope_data = pt.parse(self.sequence).isotopic_distribution(
+                max_isotopes=self.max_isotopes,
+                min_abundance_threshold=self.min_abundance_threshold,
+                distribution_resolution=self.distribution_resolution,
+                use_neutron_count=self.use_neutron,
+                charge=self.charge,
+            )
+        elif self.is_formula:
+            isotope_data = pt.isotopic_distribution(
                 chemical_formula=self.composition,
                 max_isotopes=self.max_isotopes,
                 min_abundance_threshold=self.min_abundance_threshold,
                 distribution_resolution=self.distribution_resolution,
                 use_neutron_count=self.use_neutron,
-                conv_min_abundance_threshold=None,
-                distribution_abundance=self.intensity,
-                is_abundance_sum=self.is_intensity_sum,
-                output_masses_for_neutron_offset=True,
-                neutron_mass=self.neutron_value,
+                charge=self.charge,
             )
         elif self.is_mass:
-            isotopes = pt.estimate_isotopic_distribution(
+            isotope_data = pt.estimate_isotopic_distribution(
                 neutral_mass=float(self.sequence),
                 max_isotopes=self.max_isotopes,
                 min_abundance_threshold=self.min_abundance_threshold,
                 distribution_resolution=self.distribution_resolution,
                 use_neutron_count=self.use_neutron,
-                conv_min_abundance_threshold=None,
-                distribution_abundance=self.intensity,
-                is_abundance_sum=self.is_intensity_sum,
-                output_masses_for_neutron_offset=True,
-                neutron_mass=self.neutron_value,
             )
         else:
             raise ValueError("Invalid input type")
 
-        # add delta mass
-        if self.delta_mass != 0:
+        # Convert IsotopicData objects to tuples and apply intensity scaling
+        if self.use_neutron:
             isotopes = [
-                (mass + self.delta_mass, abundance) for mass, abundance in isotopes
+                (iso.neutron_count, iso.abundance * self.intensity)
+                for iso in isotope_data
             ]
+        else:
+            isotopes = [
+                (iso.mass, iso.abundance * self.intensity)
+                for iso in isotope_data
+            ]
+
+        # Normalize abundances if needed
+        if self.is_intensity_sum:
+            total = sum(abundance for _, abundance in isotopes)
+            if total > 0:
+                isotopes = [(mass, abundance / total * self.intensity) for mass, abundance in isotopes]
+        else:
+            max_abundance = max((abundance for _, abundance in isotopes), default=1)
+            if max_abundance > 0:
+                isotopes = [(mass, abundance / max_abundance * self.intensity) for mass, abundance in isotopes]
 
         return isotopes
 
-    @property
-    def delta_mass(self) -> float:
-        if self.is_peptide:
-            _, delta_mass = pt.comp_mass(self.sequence, self.ion_type)
-            return delta_mass
-        if self.is_formula:
-            return 0
-        if self.is_mass:
-            return 0
 
-        raise ValueError("Invalid input type")
+def validate_input(single_iso_input: SingleIsoInput):
 
-
-def validate_input(self):
-
-    if self.is_peptide and not self.sequence:
+    if single_iso_input.is_peptide and not single_iso_input.sequence:
         st.warning("Please enter a sequence.")
         st.stop()
 
-    if len(self.isotopes) == 0:
+    if len(single_iso_input.isotopes) == 0:
         st.error("No isotopes found.")
         st.stop()
 
-    if self.mass >= MAX_MASS:
+    if single_iso_input.mass >= MAX_MASS:
         st.error("The mass is too high. Please check the input and try again.")
         st.stop()
 
-    if len(self.composition) >= 10:
+    if len(single_iso_input.composition) >= 10:
         st.error(
             "The formula is too complex (Limit of 10 unique elements). Please check the input and try again."
         )
         st.stop()
 
-    if self.delta_mass != 0:
-        st.warning(
-            "Ambiguous Modification! Using averagine Formula to estimate delta mass composition."
-        )
 
     # check if composition is has floats
-    if self.is_peptide or self.is_formula:
-        for k, v in self.composition.items():
+    if single_iso_input.is_peptide or single_iso_input.is_formula:
+        for k, v in single_iso_input.composition.items():
             if isinstance(v, float):
                 st.warning(
                     f"Composition has floats: {k}: {v}. This will be rounded to: {round(v)} before calculating the isotopic distribution."
@@ -284,31 +283,31 @@ def get_input_settings() -> tuple:
             help=RESOLUTION_HELP,
             key="distribution_resolution",
         )
-
-    neutron_option = stp.selectbox(
-        label="Neutron Mass",
-        options=NEUTRON_MASS_OPTIONS,
-        index=DEFAULT_NEUTRON_MASS_INDEX,
-        help=NEUTRON_MASS_HELP,
-        key="neutron_mass_option",
-    )
-
-    if neutron_option == "Neutron":
-        neutron_value = NEUTRON_MASS_VALUE
-    elif neutron_option == "C13-C12":
-        neutron_value = C13_C12_DIFF
-    elif neutron_option == "Averagine (Peptide)":
-        neutron_value = AVERAGINE_MASS
-    elif neutron_option == "Custom":
-        neutron_value = stp.number_input(
-            label="Custom Neutron Mass",
-            value=NEUTRON_MASS_VALUE,
-            format="%.6f",
-            help=CUSTOM_NEUTRON_MASS_HELP,
-            key="custom_neutron_mass",
+    else:
+        neutron_option = stp.selectbox(
+            label="Neutron Mass",
+            options=NEUTRON_MASS_OPTIONS,
+            index=DEFAULT_NEUTRON_MASS_INDEX,
+            help=NEUTRON_MASS_HELP,
+            key="neutron_mass_option",
         )
 
-    st.caption(f"Neutron Mass: {neutron_value:.6f} Da")
+        if neutron_option == "Neutron":
+            neutron_value = NEUTRON_MASS_VALUE
+        elif neutron_option == "C13-C12":
+            neutron_value = C13_C12_DIFF
+        elif neutron_option == "Averagine (Peptide)":
+            neutron_value = AVERAGINE_MASS
+        elif neutron_option == "Custom":
+            neutron_value = stp.number_input(
+                label="Custom Neutron Mass",
+                value=NEUTRON_MASS_VALUE,
+                format="%.6f",
+                help=CUSTOM_NEUTRON_MASS_HELP,
+                key="custom_neutron_mass",
+            )
+
+        st.caption(f"Neutron Mass: {neutron_value:.6f} Da")
 
     return (
         max_isotopes,
@@ -325,13 +324,15 @@ def get_single_app_input() -> SingleIsoInput:
     Get a single app input from the user and return a SingleIsoInput object.
     No validation is performed on the input.
     """
-    input_type = stp.radio(
+    input_type = stp.segmented_control(
         label="Input Type",
         options=SEQUENCE_INPUT_OPTIONS,
-        index=DEFAULT_INPUT_INDEX,
-        horizontal=True,
+        default=[DEFAULT_INPUT],
+        #horizontal=True,
+        width='stretch',
         key="input_type",
         help=INPUT_TYPE_HELP,
+
     )
 
     sequence_input = ""
@@ -340,22 +341,25 @@ def get_single_app_input() -> SingleIsoInput:
 
     # Handle different input types
     if input_type == "Peptide":
-        sequence_input = stp.text_input(
-            label="Sequence",
-            value=DEFAULT_SEQUENCE,
-            placeholder=DEFAULT_SEQUENCE,
-            help=SEQUENCE_HELP,
-            key="sequence_input",
-        )
+        c1, c2 = st.columns([7,3])
+        with c1:
+            sequence_input = stp.text_input(
+                label="Sequence",
+                value=DEFAULT_SEQUENCE,
+                placeholder=DEFAULT_SEQUENCE,
+                help=SEQUENCE_HELP,
+                key="sequence_input",
+            )
 
-        ion_type = stp.radio(
-            label="Ion Type",
-            options=ION_TYPES,
-            index=DEFAULT_ION_TYPE_INDEX,
-            horizontal=True,
-            help=ION_TYPE_HELP,
-            key="ion_type",
-        )
+        with c2:
+            ion_type = stp.selectbox(
+                label="Ion Type",
+                options=ION_TYPES,
+                index=DEFAULT_ION_TYPE_INDEX,
+                #horizontal=True,
+                help=ION_TYPE_HELP,
+                key="ion_type",
+            )
 
     elif input_type == "Formula":
         sequence_input = stp.text_input(
@@ -380,7 +384,7 @@ def get_single_app_input() -> SingleIsoInput:
             )
         )
 
-    c1, c2 = st.columns(2)
+    c1, c2 = st.columns([2,3])
     with c1:
         # Common inputs for all types
         charge = stp.number_input(
@@ -395,9 +399,10 @@ def get_single_app_input() -> SingleIsoInput:
 
     with c2:
         intensity = stp.number_input(
-            label="intensity",
+            label="Intensity (largest peak)",
             value=100.0,
             min_value=0.0,
+            step=100.0,
             key="intensity",
             help=INTENSITY_HELP,
         )
@@ -500,7 +505,7 @@ def get_multi_app_input() -> MultiIsoInput:
             ),
         },
         hide_index=True,
-        use_container_width=True,
+        width='stretch',
         key="peptide_input",
         num_rows="dynamic",
         compress=True,
@@ -579,12 +584,18 @@ def construct_isotope_df(params: SingleIsoInput) -> pd.DataFrame:
     """
     Construct a DataFrame of isotopes from the parameters.
     """
-    df = pd.DataFrame(params.isotopes, columns=["neutral_mass", "abundance"])
+    if params.use_neutron:
+        df = pd.DataFrame(params.isotopes, columns=["neutron_offset", "abundance"])
+        # Calculate neutral mass from neutron offset
+        base_mass = params.neutral_mass
+        df["neutral_mass"] = base_mass + df["neutron_offset"] * params.neutron_value
+    else:
+        df = pd.DataFrame(params.isotopes, columns=["neutral_mass", "abundance"])
 
     # sort the df
     df = df.sort_values(by="abundance", ascending=False)
 
-    # realtive abundance
+    # relative abundance
     if params.is_intensity_sum:
         df["reative_abundance"] = df["abundance"] / df["abundance"].sum()
     else:
@@ -649,7 +660,7 @@ def construct_figure(df: pd.DataFrame, params: SingleIsoInput) -> go.Figure:
         xaxis_title="m/z",
         yaxis=dict(
             title="Relative Abundance (%)",
-            titlefont=dict(color="grey"),
+            title_font=dict(color="grey"),
             tickfont=dict(color="grey"),
             # change grid line color
             gridcolor="rgba(55, 55, 55, 0.17)",
@@ -659,7 +670,7 @@ def construct_figure(df: pd.DataFrame, params: SingleIsoInput) -> go.Figure:
         ),
         yaxis2=dict(
             title="Abundance",
-            titlefont=dict(color="rgba(77, 150, 214, 0.87)"),
+            title_font=dict(color="rgba(77, 150, 214, 0.87)"),
             tickfont=dict(color="rgba(77, 150, 214, 0.87)"),
             showgrid=False,
             # change grid line colro
@@ -797,7 +808,7 @@ def construct_multi_isotope_figure(
         xaxis_title="m/z",
         yaxis=dict(
             title="Relative Abundance (%)",
-            titlefont=dict(color=y_color),
+            title_font=dict(color=y_color),
             tickfont=dict(color=y_color),
             gridcolor="rgba(55, 55, 55, 0.17)",
             rangemode="nonnegative",  # Ensure non-negative range starting at 0
@@ -806,7 +817,7 @@ def construct_multi_isotope_figure(
         ),
         yaxis2=dict(
             title="Absolute Abundance",
-            titlefont=dict(color=y2_color),
+            title_font=dict(color=y2_color),
             tickfont=dict(color=y2_color),
             anchor="x",
             overlaying="y",
@@ -852,7 +863,7 @@ def shorten_url(url: str) -> str:
         return f"Error: {e}"
 
 
-def get_query_params_url(params_dict):
+def get_query_params_url(params_dict: dict) -> str:
     """
     Create url params from alist of parameters and a dictionary with values.
 

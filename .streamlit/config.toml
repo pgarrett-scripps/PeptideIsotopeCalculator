@@ -1,0 +1,44 @@
+# Streamlit Theme Configuration for Peptide Isotope Calculator
+
+[theme]
+# Base theme - can be "light" or "dark"
+base = "light"
+
+# Primary accent color for interactive elements
+primaryColor = "#4D96D6"
+
+# Background color for the main content area
+backgroundColor = "#FFFFFF"
+
+# Background color for sidebar and most interactive widgets
+secondaryBackgroundColor = "#F0F2F6"
+
+# Color used for almost all text
+textColor = "#262730"
+
+# Font family for the entire app
+font = "sans serif"
+
+[theme.dark]
+# Dark theme configuration
+primaryColor = "#1DB954"
+backgroundColor = "#191414"
+secondaryBackgroundColor = "#282828"
+textColor = "#FFFFFF"
+
+[theme.light.sidebar]
+# Light theme sidebar configuration
+backgroundColor = "#F8F9FA"
+
+[theme.dark.sidebar]
+# Dark theme sidebar configuration
+backgroundColor = "#121212"
+
+[server]
+# Enable CORS for better compatibility
+enableCORS = false
+enableXsrfProtection = true
+
+[browser]
+# Gather usage stats
+gatherUsageStats = false
