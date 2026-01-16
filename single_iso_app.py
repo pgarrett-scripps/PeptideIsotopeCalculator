@@ -52,7 +52,7 @@ summary_df = pd.DataFrame({
     "m/z": [round(params.mz, 5)],
     "Composition": [params.chemical_formula]
 })
-st.dataframe(summary_df, hide_index=True, use_container_width=True)
+st.dataframe(summary_df, hide_index=True, width='stretch')
 
 st.plotly_chart(fig)
 

@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import requests
 
 from dataclasses import dataclass
-from typing import Literal, Optional
+from typing import Literal, Optional, Counter
 from urllib.parse import quote_plus
 
 from constants import *
@@ -198,6 +198,7 @@ def validate_input(single_iso_input: SingleIsoInput):
             "The formula is too complex (Limit of 10 unique elements). Please check the input and try again."
         )
         st.stop()
+
 
 
     # check if composition is has floats
@@ -508,7 +509,7 @@ def get_multi_app_input() -> MultiIsoInput:
         width='stretch',
         key="peptide_input",
         num_rows="dynamic",
-        compress=True,
+        compress=False,
     )
 
     df = df.dropna(axis=0, how="any")
@@ -529,19 +530,21 @@ def get_multi_app_input() -> MultiIsoInput:
             neutron_value,
         ) = get_input_settings()
 
-        line_width = stp.number_input(
-            "Line Width",
-            min_value=1,
-            max_value=10,
-            value=3,
-            step=1,
-            help="Set the line width for the plot.",
-            key="line_width",
-        )
-
-        is_log = stp.toggle(
-            label="Log Scale",
-            value=False,
+        c1, c2= st.columns([5,2], vertical_alignment="bottom")
+        with c1:
+            line_width = stp.number_input(
+                "Line Width",
+                min_value=1,
+                max_value=10,
+                value=3,
+                step=1,
+                help="Set the line width for the plot.",
+                key="line_width",
+            )
+        with c2:
+            is_log = stp.toggle(
+                label="Log Scale",
+                value=False,
             key="is_log",
             help="Use log scale for the y-axis.",
         )
@@ -863,7 +866,7 @@ def shorten_url(url: str) -> str:
         return f"Error: {e}"
 
 
-def get_query_params_url(params_dict: dict) -> str:
+def get_query_params_url(params_dict: dict[str, list[str]]) -> str:
     """
     Create url params from alist of parameters and a dictionary with values.
 

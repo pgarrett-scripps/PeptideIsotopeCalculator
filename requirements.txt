@@ -1,5 +1,5 @@
 streamlit
-streamlit-permalink @ git+https://github.com/pgarrett-scripps/streamlit-permalink@c7ed5ae
+-e ../streamlit-permalink
 -e ../peptacular
 plotly
 streamlit-js-eval
